@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:terminal_app/services/user_service.dart';
-import 'package:terminal_app/utils/camera.service.dart';
-import 'package:terminal_app/utils/convert.dart';
-import 'package:terminal_app/utils/face_service.dart';
+import 'package:terminal_app/main.dart';
+import 'package:terminal_app/services/web/user_service.dart';
+import 'package:terminal_app/services/device/camera.service.dart';
+import 'package:terminal_app/utils/face_comparison.dart';
 
 class FaceRegister extends StatefulWidget {
   final id;
@@ -20,7 +19,7 @@ class FaceRegister extends StatefulWidget {
 class _FaceRegisterState extends State<FaceRegister> {
   CameraService cameraService = CameraService();
   FaceDetector faceDetector = GoogleMlKit.vision.faceDetector();
-  FaceService faceService = FaceService();
+  FaceComparison faceService = FaceComparison();
   bool detectingFaces = false;
   Future cameraFuture;
   Face face;
@@ -45,7 +44,12 @@ class _FaceRegisterState extends State<FaceRegister> {
       body: Stack(
         alignment: Alignment.center,
         children: [
-          cameraService.camView(context, cameraFuture, face, imageSize),
+          cameraService.camView(
+            context,
+            cameraFuture,
+            face,
+            imageSize,
+          ),
           load ? CircularProgressIndicator() : Center(),
         ],
       ),
@@ -53,12 +57,7 @@ class _FaceRegisterState extends State<FaceRegister> {
   }
 
   startCam() async {
-    List<CameraDescription> cameras = await availableCameras();
-    final CameraDescription cameraDescription = cameras.firstWhere(
-      (CameraDescription camera) =>
-          camera.lensDirection == CameraLensDirection.front,
-    );
-    cameraFuture = cameraService.startService(cameraDescription);
+    cameraFuture = cameraService.startService(MyApp.state.cameraDescription);
     await cameraFuture;
     setState(() {});
     frameFaces();
@@ -74,8 +73,10 @@ class _FaceRegisterState extends State<FaceRegister> {
         detectingFaces = true;
 
         try {
-          var inputImage =
-              Convert.toInputImage(image, cameraService.cameraRotation);
+          var inputImage = cameraService.toInputImage(
+            image,
+            cameraService.cameraRotation,
+          );
           List<Face> faces = await faceDetector.processImage(inputImage);
           if (faces != null) {
             if (faces.length > 0) {
@@ -89,17 +90,14 @@ class _FaceRegisterState extends State<FaceRegister> {
                 });
                 await cameraService.cameraController.stopImageStream();
                 await Future.delayed(Duration(milliseconds: 200));
-                //XFile file = await cameraService.takePicture();
                 await faceService.setCurrentFace(image, face);
-                UserService.getById(widget.id).then((value) {
-                  value.face = faceService.faceData;
-                  faceService.clearFacedata();
-                  UserService.update(value).then((value) {
-                    if (value != null) {
-                      Navigator.pop(context);
-                    }
-                  });
-                });
+                var user = await UserService.getById(widget.id);
+                user.face = faceService.faceData;
+                faceService.clearFacedata();
+                var result = await UserService.update(user);
+                if (result != null) {
+                  Navigator.pop(context);
+                }
               }
             } else {
               setState(() {

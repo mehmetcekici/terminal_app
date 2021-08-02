@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:terminal_app/entities/transaction.dart';
 import 'package:terminal_app/entities/user.dart';
 import 'package:terminal_app/pages/in_out.dart';
-import 'package:terminal_app/services/transaction_service.dart';
-import 'package:terminal_app/services/user_service.dart';
-import 'package:terminal_app/utils/toast_message.dart';
+import 'package:terminal_app/services/web/transaction_service.dart';
+import 'package:terminal_app/services/web/user_service.dart';
+import 'package:terminal_app/services/device/toast_service.dart';
+import 'package:terminal_app/widgets/transaction_list.dart';
 
 class UserDetail extends StatefulWidget {
-  final cardNo;
+  final id;
   final isInput;
-  UserDetail({Key key, this.cardNo, this.isInput}) : super(key: key);
+  UserDetail({Key key, this.id, this.isInput}) : super(key: key);
 
   @override
   _UserDetailState createState() => _UserDetailState();
@@ -27,7 +28,7 @@ class _UserDetailState extends State<UserDetail> {
   @override
   void initState() {
     super.initState();
-    UserService.getByCardNo(widget.cardNo).then((value) {
+    UserService.getById(widget.id).then((value) {
       if (value != null) {
         setState(() {
           user = value;
@@ -46,7 +47,7 @@ class _UserDetailState extends State<UserDetail> {
               });
             });
           } else {
-            ToastMessage.show("İşlem başarısız");
+            ToastService.show("İşlem başarısız");
           }
         });
       }
@@ -124,50 +125,8 @@ class _UserDetailState extends State<UserDetail> {
           ),
         ),
         Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                alignment: Alignment.centerLeft,
-                padding: EdgeInsets.only(left: 20),
-                width: double.infinity,
-                height: 30,
-                color: Colors.blue,
-                child: Text(
-                  "Önceki Hareketler",
-                  style: TextStyle(fontSize: 20, color: Colors.white),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: transactions[index].islem == 11
-                            ? Icon(
-                                Icons.arrow_back,
-                                textDirection: TextDirection.rtl,
-                                color: Colors.green,
-                              )
-                            : Icon(
-                                Icons.arrow_back,
-                                color: Colors.red,
-                              ),
-                        title: Text(
-                          transactions[index].islem == 11 ? "GİRİŞ" : "ÇIKIŞ",
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w400),
-                        ),
-                        trailing: Text(
-                          transactions[index].date,
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w400),
-                        ),
-                      );
-                    }),
-              ),
-            ],
+          child: TransactionList(
+            transactions: transactions,
           ),
         ),
       ],

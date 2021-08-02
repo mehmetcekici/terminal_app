@@ -29,18 +29,15 @@ class Transaction {
   static String toListMap(List<Transaction> data) =>
       json.encode(List<dynamic>.from(data.map((x) => x.toMap())));
 
-  static String toStr(Transaction transaction) {
-    return transaction.pin.toString() +
-        "#" +
-        transaction.date +
-        "#" +
-        transaction.islem.toString();
+  @override
+  toString() {
+    return pin.toString() + "#" + date + "#" + islem.toString();
   }
 
   static String listToString(List<Transaction> list) {
     var str = "";
     for (var i = 0; i < list.length; i++) {
-      str += toStr(list[i]) + "\n";
+      str += list[i].toString() + "\n";
     }
     return str;
   }

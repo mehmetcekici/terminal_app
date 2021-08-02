@@ -4,7 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:terminal_app/widgets/FacePainter.dart';
+import 'package:terminal_app/widgets/face_painter.dart';
 
 class CameraService {
   // singleton boilerplate
@@ -76,6 +76,43 @@ class CameraService {
     this._cameraController.dispose();
   }
 
+  toInputImage(CameraImage cameraImage, InputImageRotation cameraRotation) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in cameraImage.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
+
+    final Size imageSize =
+        Size(cameraImage.width.toDouble(), cameraImage.height.toDouble());
+
+    final InputImageRotation imageRotation =
+        cameraRotation ?? InputImageRotation.Rotation_0deg;
+
+    final InputImageFormat inputImageFormat =
+        InputImageFormatMethods.fromRawValue(cameraImage.format.raw) ??
+            InputImageFormat.NV21;
+
+    final planeData = cameraImage.planes.map(
+      (Plane plane) {
+        return InputImagePlaneMetadata(
+          bytesPerRow: plane.bytesPerRow,
+          height: plane.height,
+          width: plane.width,
+        );
+      },
+    ).toList();
+
+    final inputImageData = InputImageData(
+      size: imageSize,
+      imageRotation: imageRotation,
+      inputImageFormat: inputImageFormat,
+      planeData: planeData,
+    );
+
+    return InputImage.fromBytes(bytes: bytes, inputImageData: inputImageData);
+  }
+
   getInputImage(CameraImage cameraImage) {
     final WriteBuffer allBytes = WriteBuffer();
     for (Plane plane in cameraImage.planes) {
@@ -134,8 +171,8 @@ class CameraService {
                       children: <Widget>[
                         CameraPreview(cameraController),
                         CustomPaint(
-                          painter:
-                              FacePainter(face: face, imageSize: imageSize),
+                          painter: CustomFacePainter(
+                              face: face, imageSize: imageSize),
                         )
                       ],
                     ),
@@ -145,7 +182,7 @@ class CameraService {
             ),
           );
         } else {
-          return CircularProgressIndicator();
+          return Center();
         }
       },
     );

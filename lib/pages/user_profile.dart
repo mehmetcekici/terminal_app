@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:terminal_app/entities/transaction.dart';
 import 'package:terminal_app/entities/user.dart';
 import 'package:terminal_app/pages/face_register.dart';
-import 'package:terminal_app/services/transaction_service.dart';
-import 'package:terminal_app/services/user_service.dart';
+import 'package:terminal_app/services/web/transaction_service.dart';
+import 'package:terminal_app/services/web/user_service.dart';
+import 'package:terminal_app/widgets/transaction_list.dart';
 
 class UserProfile extends StatefulWidget {
   final id;
@@ -85,7 +86,10 @@ class _UserProfileState extends State<UserProfile> {
                     SizedBox(height: 10),
                     // ignore: deprecated_member_use
                     RaisedButton(
-                      child: Text("Yüz Tanıma ekle"),
+                      color: Colors.black,
+                      child: user.face == null
+                          ? Text("Yüz Ekle")
+                          : Text("Yüzü Değiştir"),
                       onPressed: () {
                         Navigator.push(
                             context,
@@ -101,50 +105,8 @@ class _UserProfileState extends State<UserProfile> {
           ),
         ),
         Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                alignment: Alignment.centerLeft,
-                padding: EdgeInsets.only(left: 20),
-                width: double.infinity,
-                height: 30,
-                color: Colors.blue,
-                child: Text(
-                  "Önceki Hareketler",
-                  style: TextStyle(fontSize: 20, color: Colors.white),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: transactions[index].islem == 11
-                            ? Icon(
-                                Icons.arrow_back,
-                                textDirection: TextDirection.rtl,
-                                color: Colors.green,
-                              )
-                            : Icon(
-                                Icons.arrow_back,
-                                color: Colors.red,
-                              ),
-                        title: Text(
-                          transactions[index].islem == 11 ? "GİRİŞ" : "ÇIKIŞ",
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w400),
-                        ),
-                        trailing: Text(
-                          transactions[index].date,
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w400),
-                        ),
-                      );
-                    }),
-              ),
-            ],
+          child: TransactionList(
+            transactions: transactions,
           ),
         ),
       ],

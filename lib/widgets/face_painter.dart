@@ -3,8 +3,8 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-class FacePainter extends CustomPainter {
-  FacePainter({@required this.imageSize, @required this.face});
+class CustomFacePainter extends CustomPainter {
+  CustomFacePainter({@required this.imageSize, @required this.face});
   final Size imageSize;
   double scaleX, scaleY;
   Face face;
@@ -37,7 +37,7 @@ class FacePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(FacePainter oldDelegate) {
+  bool shouldRepaint(CustomFacePainter oldDelegate) {
     return oldDelegate.imageSize != imageSize || oldDelegate.face != face;
   }
 }

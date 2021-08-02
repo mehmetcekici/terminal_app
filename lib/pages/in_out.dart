@@ -1,18 +1,18 @@
 import 'dart:async';
-
-import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:nfc_io/nfc_io.dart';
+import 'package:terminal_app/main.dart';
 import 'package:terminal_app/pages/user_detail.dart';
-import 'package:terminal_app/services/user_service.dart';
-import 'package:terminal_app/utils/camera.service.dart';
+import 'package:terminal_app/services/device/nfc_service.dart';
+import 'package:terminal_app/services/web/user_service.dart';
+import 'package:terminal_app/services/device/camera.service.dart';
 import 'package:terminal_app/utils/convert.dart';
-import 'package:terminal_app/utils/face_service.dart';
-import 'package:terminal_app/utils/toast_message.dart';
-import 'package:terminal_app/widgets/camera_footer.dart';
-import 'package:terminal_app/widgets/camera_header.dart';
+import 'package:terminal_app/utils/face_comparison.dart';
+import 'package:terminal_app/services/device/toast_service.dart';
+import 'package:terminal_app/widgets/circular_progress.dart';
+import 'package:terminal_app/widgets/info.dart';
 
 class InOut extends StatefulWidget {
   final isInput;
@@ -25,7 +25,7 @@ class InOut extends StatefulWidget {
 class _InOutState extends State<InOut> {
   CameraService cameraService = CameraService();
   FaceDetector faceDetector = GoogleMlKit.vision.faceDetector();
-  FaceService faceService = FaceService();
+  FaceComparison faceService = FaceComparison();
   bool detectingFaces = false;
   Future cameraFuture;
   Face face;
@@ -33,18 +33,15 @@ class _InOutState extends State<InOut> {
   bool load = false;
 
   NfcData data;
-  String cardNo;
-  StreamSubscription _subscription;
   @override
   void initState() {
     super.initState();
-
-    startCam();
-    startNfc();
+    startServices();
   }
 
   @override
   void dispose() {
+    stopServices();
     cameraService.cameraController?.dispose();
     super.dispose();
   }
@@ -55,33 +52,48 @@ class _InOutState extends State<InOut> {
       body: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          cameraService.camView(context, cameraFuture, face, imageSize),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CameraHeader(isInput: widget.isInput),
-              load ? CircularProgressIndicator() : Center(),
-              CameraFooter(),
-            ],
+          load
+              ? cameraService.camView(context, cameraFuture, face, imageSize)
+              : CircularProgress(),
+          Positioned(
+            top: 0,
+            child: CustomInfo(
+              cam: cameraFuture != null,
+              nfc: NfcService.isStarting,
+            ),
           ),
         ],
       ),
     );
   }
 
-  startCam() async {
-    List<CameraDescription> cameras = await availableCameras();
-    final CameraDescription cameraDescription = cameras.firstWhere(
-      (CameraDescription camera) =>
-          camera.lensDirection == CameraLensDirection.front,
-    );
-    cameraFuture = cameraService.startService(cameraDescription);
+  startServices() async {
+    NfcService.start(onRead);
+    Future.delayed(Duration(milliseconds: 500));
+    cameraFuture = cameraService.startService(MyApp.state.cameraDescription);
     await cameraFuture;
-    setState(() {});
-    frameFaces();
+    setState(() {
+      load = true;
+    });
+    faceDedect();
   }
 
-  frameFaces() {
+  stopServices() async {
+    NfcService.stop();
+    await cameraService.cameraController.stopImageStream();
+  }
+
+  onRead(data) {
+    setState(() {
+      this.data = data;
+      var cardNo = Convert.hextoDecimal(data.id);
+      UserService.getByCardNo(cardNo).then((value) {
+        navigate(value.id);
+      });
+    });
+  }
+
+  faceDedect() {
     imageSize = cameraService.getImageSize();
     cameraService.cameraController.startImageStream((image) async {
       if (cameraService.cameraController != null) {
@@ -92,34 +104,34 @@ class _InOutState extends State<InOut> {
 
         try {
           var inputImage =
-              Convert.toInputImage(image, cameraService.cameraRotation);
+              cameraService.toInputImage(image, cameraService.cameraRotation);
           List<Face> faces = await faceDetector.processImage(inputImage);
           if (faces != null) {
             if (faces.length > 0) {
               setState(() {
                 face = faces[0];
               });
-              if (ctrl) {
+              if (isMiddle) {
                 await Future.delayed(Duration(milliseconds: 500));
                 setState(() {
-                  load = true;
+                  load = false;
                 });
                 await Future.delayed(Duration(milliseconds: 200));
                 await faceService.setCurrentFace(image, face);
-                cardNo = await faceService.searchResult();
+                int userId = await faceService.searchResult();
                 faceService.clearFacedata();
-                if (cardNo.isNotEmpty) {
-                  route();
+                if (userId != null) {
+                  navigate(userId);
                 } else {
                   setState(() {
-                    load = false;
+                    load = true;
                   });
                 }
               }
             } else {
               setState(() {
                 face = null;
-                load = false;
+                load = true;
               });
             }
           }
@@ -132,7 +144,7 @@ class _InOutState extends State<InOut> {
     });
   }
 
-  bool get ctrl {
+  get isMiddle {
     if (imageSize == null || face == null) return false;
     var left =
         (imageSize.width - face.boundingBox.right) > imageSize.width / 10;
@@ -143,40 +155,19 @@ class _InOutState extends State<InOut> {
     return left && right && bottom && top;
   }
 
-  startNfc() {
-    _subscription = NfcIo.startReading.listen((data) {
-      setState(() {
-        this.data = data;
-        cardNo = Convert.hextoDecimal(data.id);
-        route();
-      });
-    });
-  }
-
-  stopServices() async {
-    if (_subscription != null) {
-      _subscription.cancel();
-      var result = await NfcIo.stopReading;
-      setState(() {
-        this.data = result;
-      });
-    }
-    await cameraService.cameraController.stopImageStream();
-  }
-
-  route() async {
+  navigate(int userId) async {
     await stopServices();
-    UserService.getByCardNo(cardNo).then((value) {
+    UserService.getById(userId).then((value) {
       if (value != null) {
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(
                 builder: (context) => UserDetail(
-                      cardNo: cardNo,
+                      id: userId,
                       isInput: widget.isInput,
                     )));
       } else {
-        ToastMessage.show("Kullanıcı Bulunamadı");
+        ToastService.show("Kullanıcı Bulunamadı");
       }
     });
   }

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:terminal_app/services/transaction_service.dart';
-import 'package:terminal_app/services/user_service.dart';
-import 'package:terminal_app/utils/device_info.dart';
-import 'package:terminal_app/utils/shared_pref.dart';
-import 'package:terminal_app/widgets/my_text_field.dart';
+import 'package:terminal_app/main.dart';
+import 'package:terminal_app/services/web/transaction_service.dart';
+import 'package:terminal_app/services/web/user_service.dart';
+import 'package:terminal_app/services/device/device_info_service.dart';
+import 'package:terminal_app/utils/extensions.dart';
+import 'package:terminal_app/services/device/shared_pref_service.dart';
+import 'package:terminal_app/services/device/toast_service.dart';
+import 'package:terminal_app/widgets/app_bar.dart';
+import 'package:terminal_app/widgets/button.dart';
+import 'package:terminal_app/widgets/circular_progress.dart';
+import 'package:terminal_app/widgets/text_field.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class Settings extends StatefulWidget {
   Settings({Key key}) : super(key: key);
@@ -16,135 +23,132 @@ class _SettingsState extends State<Settings> {
   TextEditingController controller = TextEditingController();
   int userCount, transactionCount;
   String deviceId;
+  bool loading = true;
   @override
   void initState() {
     super.initState();
-
-    DeviceInfo.getId().then((id) {
-      this.setState(() {
-        deviceId = id;
-      });
-    });
-
-    SharedPref.getString("serverUrl").then((value) {
-      setState(() {
-        controller.text = value;
-      });
-    });
-
-    UserService.count().then((value) {
-      setState(() {
-        userCount = value;
-      });
-    });
-
-    TransactionService.count().then((value) {
-      setState(() {
-        transactionCount = value;
-      });
-    });
+    getData();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Padding(
-          padding: const EdgeInsets.only(left: 10.0),
-          child: Text("Ayarlar"),
-        ),
-      ),
-      body: Container(
-        child: ListView(
-          children: <Widget>[
-            ListTile(
-              leading: Icon(Icons.perm_device_info_rounded),
-              title: Text("Teminal Kimliği"),
-              trailing: Text(deviceId ?? "Bilinmiyor"),
-            ),
-            Divider(),
-            ListTile(
-              leading: Icon(Icons.cloud_done_rounded),
-              title: MyTextField(
-                  labelText: "server Url",
-                  controller: controller,
-                  padding: 0.0),
-            ),
-            Divider(),
-            ListTile(
-              leading: Icon(Icons.supervised_user_circle),
-              title: Text("Terminaldeki Kişiler"),
-              subtitle: Text("$userCount Kişi"),
-              trailing: Icon(Icons.arrow_forward_ios_rounded),
-              onTap: () {
-                Navigator.pushNamed(context, "/user_list");
-              },
-            ),
-            Divider(),
-            ListTile(
-              leading: Icon(Icons.sync_alt_rounded),
-              title: Text("Gönderilmemiş Hareketler"),
-              subtitle: Text("$transactionCount Hareket"),
-              //trailing: Icon(Icons.arrow_forward_ios_rounded),
-              onTap: () {
-                //Navigator.pushNamed(context, "/transactions");
-              },
-            ),
-            Divider(),
-            ButtonTheme(
-              height: MediaQuery.of(context).size.height / 10,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 30, right: 30, top: 10),
-                // ignore: deprecated_member_use
-                child: RaisedButton.icon(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0))),
-                  label: Text(
-                    "SENKRONİZE ET",
-                    style: TextStyle(color: Colors.white, fontSize: 25),
-                  ),
-                  icon: Icon(
-                    Icons.sync_rounded,
-                    size: 25,
-                    color: Colors.white,
-                  ),
-                  textColor: Colors.white,
-                  splashColor: Colors.green,
-                  color: Colors.blue,
-                  onPressed: () => click(),
-                ),
+      appBar: CustomAppBar(
+        title: "AYARLAR",
+      ).build(context),
+      body: loading
+          ? CircularProgress()
+          : Container(
+              child: ListView(
+                children: <Widget>[
+                  _deviceInfo,
+                  Divider(),
+                  _serverInfo,
+                  Divider(),
+                  _userInfo,
+                  Divider(),
+                  _transactionsInfo,
+                  Divider(),
+                  _syncButton,
+                ],
               ),
             ),
-          ],
-        ),
+    );
+  }
+
+  get _deviceInfo {
+    return ListTile(
+      leading: Icon(Icons.perm_device_info_rounded),
+      title: Text("Teminal Kimliği"),
+      trailing: Text(deviceId ?? "Bilinmiyor"),
+    );
+  }
+
+  get _serverInfo {
+    return ListTile(
+      leading: Icon(FontAwesomeIcons.globe),
+      title: Text("Sunucu Adresi"),
+      subtitle: CustomTextField(
+        controller: controller,
+        hintText: "www.domain.com",
+        keyboardType: TextInputType.url,
       ),
     );
   }
 
-  click() {
+  get _userInfo {
+    return ListTile(
+      leading: Icon(Icons.supervised_user_circle),
+      title: Text("Terminaldeki Kişiler"),
+      subtitle: Text("$userCount Kişi"),
+      trailing: Icon(Icons.arrow_forward_ios_rounded),
+      onTap: () {
+        Navigator.pushNamed(context, "/user_list");
+      },
+    );
+  }
+
+  get _transactionsInfo {
+    return ListTile(
+      leading: Icon(Icons.sync_alt_rounded),
+      title: Text("Gönderilmemiş Hareketler"),
+      subtitle: Text("$transactionCount Hareket"),
+      //trailing: Icon(Icons.arrow_forward_ios_rounded),
+      onTap: () {
+        //Navigator.pushNamed(context, "/transactions");
+      },
+    );
+  }
+
+  get _syncButton {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: context.width / 5,
+        right: context.width / 5,
+        top: context.height / 20,
+      ),
+      child: CustomButton(
+        iconData: Icons.sync,
+        text: "SENKRONİZE ET",
+        onTap: () {
+          if (MyApp.state.isConnected) {
+            click();
+          } else {
+            ToastService.show("İnternet bağlantısı gerekli");
+          }
+        },
+      ),
+    );
+  }
+
+  click() async {
     if (controller.text.isNotEmpty) {
+      setState(() {
+        loading = true;
+      });
       var url = controller.text;
       if (!url.startsWith("http")) url = "http://" + url;
-      SharedPref.add("serverUrl", url).then((value) {
-        if (value) {
-          UserService.downloadData().then((value) {
-            if (value) {
-              UserService.count().then((value) {
-                userCount = value;
-              });
-            }
-          });
-          TransactionService.uploadData().then((value) {
-            if (value) {
-              TransactionService.count().then((value) {
-                setState(() {
-                  transactionCount = value;
-                });
-              });
-            }
-          });
-        }
-      });
+      await SharedPrefService.add("serverUrl", url);
+      await UserService.downloadData();
+      await TransactionService.uploadData();
+      getData();
+    } else {
+      ToastService.show("Sunucu adresi giriniz...");
     }
+  }
+
+  getData() async {
+    var deviceid = await DeviceInfoService.getId();
+    var serverurl = await SharedPrefService.getString("serverUrl");
+    var usercount = await UserService.count();
+    var transcount = await TransactionService.count();
+
+    setState(() {
+      deviceId = deviceid;
+      controller.text = serverurl;
+      userCount = usercount;
+      transactionCount = transcount;
+      loading = false;
+    });
   }
 }

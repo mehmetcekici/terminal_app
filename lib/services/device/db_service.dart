@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-class DbHelper {
+class DbService {
   static final _dbName = "terminalDb.db";
   static final _dbVersion = 1;
 
-  DbHelper._privateConstructor();
+  DbService._privateConstructor();
 
-  static final DbHelper instance = DbHelper._privateConstructor();
+  static final DbService instance = DbService._privateConstructor();
 
   static Database _db;
 
@@ -77,22 +77,4 @@ class DbHelper {
         where: where ?? null, whereArgs: whereArgs ?? null);
     return result.length;
   }
-
-  /*
-  Future<int> insert(String table, Map<String, dynamic> value) async {
-    Database db = await instance.db;
-    return await db.insert(table, value);
-  }
-
-  Future<int> update(String table, Map<String, dynamic> value) async {
-    Database db = await instance.db;
-    int id = value["id"];
-    return await db.update(table, value, where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<int> delete(String table, int id) async {
-    Database db = await instance.db;
-    return await db.delete(table, where: 'id = ?', whereArgs: [id]);
-  }
-  */
 }

@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:terminal_app/services/user_service.dart';
+import 'package:terminal_app/services/web/user_service.dart';
 import 'package:tflite_flutter/tflite_flutter.dart' as tflite;
 import 'package:image/image.dart' as imglib;
 
-class FaceService {
+class FaceComparison {
   tflite.Interpreter _interpreter;
   List _faceData;
   List get faceData => this._faceData;
@@ -116,22 +116,22 @@ class FaceService {
     }
   }
 
-  Future<String> searchResult() async {
+  Future<int> searchResult() async {
     var users = await UserService.getAll();
     if (users?.length == 0) return null;
     double minDist = 999;
     double currDist = 0.0;
-    String currentCardNo;
+    int currentUserId;
 
     /// search the closest result 👓
     for (int i = 0; i < users.length; i++) {
       currDist = _euclideanDistance(users[i].face, faceData);
       if (currDist <= 1 && currDist < minDist) {
         minDist = currDist;
-        currentCardNo = users[i].kartdec;
+        currentUserId = users[i].id;
       }
     }
-    return currentCardNo;
+    return currentUserId;
   }
 
   double _euclideanDistance(List e1, List e2) {

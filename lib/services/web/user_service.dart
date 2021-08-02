@@ -1,8 +1,8 @@
 import 'package:terminal_app/entities/user.dart';
-import 'package:terminal_app/utils/db_helper.dart';
+import 'package:terminal_app/services/device/db_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:terminal_app/utils/device_info.dart';
-import 'package:terminal_app/utils/shared_pref.dart';
+import 'package:terminal_app/services/device/device_info_service.dart';
+import 'package:terminal_app/services/device/shared_pref_service.dart';
 
 class UserService {
   static final table = "Users";
@@ -10,8 +10,8 @@ class UserService {
 
   static Future<bool> downloadData() async {
     if (_users == null) _users = <User>[];
-    var deviceId = await DeviceInfo.getId();
-    var server = await SharedPref.getString("serverUrl");
+    var deviceId = await DeviceInfoService.getId();
+    var server = await SharedPrefService.getString("serverUrl");
     var url = "$server/iclock/andoridget.aspx?SN=$deviceId";
     http.Response response;
     if (server != null && server.isNotEmpty) {
@@ -49,21 +49,22 @@ class UserService {
   }
 
   /// User get all from local db
-  static Future<List<User>> getAll() async {
-    var db = DbHelper.instance;
-    var result = await db.select(table);
+  static Future<List<User>> getAll(
+      {String where, List<Object> whereArgs}) async {
+    var db = DbService.instance;
+    var result = await db.select(table, where: where, whereArgs: whereArgs);
     return User.fromSqfLiteList(result);
   }
 
   static Future<User> getById(int id) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
 
     var result = await db.select(table, where: "ID = ?", whereArgs: [id]);
     return User.fromSqfLiteList(result).first;
   }
 
   static Future<User> getByPin(int pin) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     var query = await db.select(table, where: "PIN = ?", whereArgs: [pin]);
     var result = User.fromSqfLiteList(query);
     if (result.isNotEmpty) return result.first;
@@ -71,7 +72,7 @@ class UserService {
   }
 
   static Future<User> getByCardNo(String cardNo) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     var query =
         await db.select(table, where: "KARTDEC = ?", whereArgs: [cardNo]);
     var result = User.fromSqfLiteList(query);
@@ -80,44 +81,22 @@ class UserService {
   }
 
   static Future<int> add(User user) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     return db.insert(table, user.toMapForSqfLite());
   }
 
   static Future<int> update(User user) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     return db.update(table, user.id, user.toMapForSqfLite());
   }
 
   static Future<int> delete(int id) async {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     return db.delete(table, id);
   }
 
   static Future<int> count({String where, List<Object> whereArgs}) {
-    var db = DbHelper.instance;
+    var db = DbService.instance;
     return db.count(table, where: where, whereArgs: whereArgs);
   }
 }
-
-/*
-  static Future<void> readJson() async {
-    final String response = await rootBundle.loadString('assets/users.json');
-    return await save(response);
-  }
-
-  static Future<String> getAll() {
-    
-  }
-
-
-  static Future<User> getById(String id) async {
-    var result = await getAll();
-    return User.userFromJson(result).firstWhere((x) => x.pin == id);
-  }
-
-  static Future<User> getByCardNo(String cardNo) async {
-    var result = await getAll();
-    return User.userFromJson(result).firstWhere((x) => x.kartdec == cardNo);
-  }
-  */
