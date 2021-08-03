@@ -45,10 +45,11 @@ class _UserProfileState extends State<UserProfile> {
       children: <Widget>[
         Container(
           decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.blue[400], Colors.blue[600]])),
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.blue[400], Colors.blue[600]]),
+          ),
           child: Container(
             width: double.infinity,
             height: 300,
